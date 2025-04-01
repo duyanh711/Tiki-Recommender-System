@@ -16,6 +16,35 @@ HEADERS = {
     'TE': 'Trailers',
 }
 
+PARAMS_PAGE = {
+    'limit': '40',
+    'aggregations': '2',
+    'trackity_id': 'dd393ec3-561d-b612-c009-277495b0b207',
+    'page': '1',
+    'category': '1883',
+    'urlKey':  'nha-cua-doi-song',
+}
+
+PARAMS = {
+    "params_product": {
+        "platform": "web",
+        "version": 3
+    },
+    "params_reviews": {
+        'sort': 'score|desc,id|desc,stars|all',
+        'page': 1,
+        'limit': 5,
+        'include': 'comments,contribute_info,attribute_vote_summary'
+    },
+    "params_seller": {
+        'trackity_id': 'dd393ec3-561d-b612-c009-277495b0b207',
+        "platform": "desktop",
+        "version": 3
+    }
+}
+
+
+
 BASE_URLS = {
     "base_url": "https://tiki.vn",
     "base_page_url": "https://tiki.vn/api/personalish/v1/blocks/listings",

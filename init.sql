@@ -1,0 +1,3 @@
+CREATE ROLE airflow WITH LOGIN PASSWORD 'airflow';
+ALTER ROLE airflow CREATEDB;
+CREATE DATABASE airflow OWNER airflow;

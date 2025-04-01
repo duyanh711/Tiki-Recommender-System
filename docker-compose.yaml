@@ -3,12 +3,19 @@ services:
   de_psql:
     image: postgres:15
     container_name: de_psql
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow 
+      - POSTGRES_DB=airflow
     volumes:
       - ./mnt/postgresql:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    env_file:
-      - env
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
     networks:
       - de_network
 
@@ -52,15 +59,124 @@ services:
     networks:
       - de_network
 
-  de_streamlit:
-    build:
-      context: ./docker_images/streamlit
-      dockerfile: ./Dockerfile
-    image: de_streamlit:latest
-    container_name: de_streamlit
-    volumes:
-      - ./docker_images/streamlit/app:/app
+  # de_streamlit:
+  #   build:
+  #     context: ./docker_images/streamlit
+  #     dockerfile: ./Dockerfile
+  #   image: de_streamlit:latest
+  #   container_name: de_streamlit
+  #   volumes:
+  #     - ./docker_images/streamlit/app:/app
+  #   ports:
+  #     - "8501:8501"
+  #   networks:
+  #     - de_network
+
+  redis:
+    image: redis:latest
+    container_name: airflow_redis
+    restart: always
     ports:
-      - "8501:8501"
+      - "6379:6379"
     networks:
       - de_network
+
+  airflow_init:
+    image: apache/airflow:2.7.0
+    container_name: airflow_init
+    depends_on:
+      - de_psql
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@de_psql:5432/airflow
+    command: >
+      bash -c "
+      airflow db init &&
+      airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com
+      "
+    networks:
+      - de_network
+
+  airflow_webserver:
+    image: apache/airflow:2.7.0
+    container_name: airflow_webserver
+    restart: always
+    depends_on:
+      - airflow_init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@de_psql:5432/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@de_psql:5432/airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: mysecretkey
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs:z
+      - ./airflow/plugins:/opt/airflow/plugins
+    command: webserver
+    networks:
+      - de_network
+
+  airflow_scheduler:
+    image: apache/airflow:2.7.0
+    container_name: airflow_scheduler
+    restart: always
+    depends_on:
+      - airflow_webserver
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@de_psql:5432/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@de_psql:5432/airflow
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    command: scheduler
+    networks:
+      - de_network
+
+  airflow_worker:
+    image: apache/airflow:2.7.0
+    container_name: airflow_worker
+    restart: always
+    depends_on:
+      - airflow_webserver
+      - redis
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@de_psql:5432/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@de_psql:5432/airflow
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    command: celery worker
+    networks:
+      - de_network
+
+  airflow_triggerer:
+    image: apache/airflow:2.7.0
+    container_name: airflow_triggerer
+    restart: always
+    depends_on:
+      - airflow_webserver
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@de_psql:5432/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@de_psql:5432/airflow
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    command: triggerer
+    networks:
+      - de_network
+
+networks:
+  de_network:
+    driver: bridge
