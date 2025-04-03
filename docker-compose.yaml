@@ -112,9 +112,9 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs:z
-      - ./airflow/plugins:/opt/airflow/plugins
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs:z
+      - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     command: webserver
     networks:
       - de_network
@@ -131,9 +131,9 @@ services:
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@de_psql:5432/airflow
     volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ./airflow/plugins:/opt/airflow/plugins
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+      - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     command: scheduler
     networks:
       - de_network
@@ -151,9 +151,9 @@ services:
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@de_psql:5432/airflow
     volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ./airflow/plugins:/opt/airflow/plugins
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+      - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     command: celery worker
     networks:
       - de_network
@@ -170,9 +170,9 @@ services:
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@de_psql:5432/airflow
     volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ./airflow/plugins:/opt/airflow/plugins
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+      - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     command: triggerer
     networks:
       - de_network

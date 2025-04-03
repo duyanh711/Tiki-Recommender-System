@@ -1,3 +1,4 @@
 env
-/airflow/
+/logs/
 /mnt/
+/plugins/
