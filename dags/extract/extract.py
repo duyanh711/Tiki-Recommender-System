@@ -1,7 +1,7 @@
 from config import settings
 from extract.minio_manager import MinIOHandler
 from src.utils.logger import setup_logger
-from tiki_crawler import TikiCrawler
+from extract.tiki_crawler import TikiCrawler
 
 logger = setup_logger(__name__)
 
@@ -14,11 +14,10 @@ def extract_from_tiki():
     """
     try:
         minio_config = {
-            "endpoint": settings.MINIO_ENDPOINT,
-            "access_key": settings.MINIO_ACCESS_KEY,
-            "secret_key": settings.MINIO_SECRET_KEY,
-            "secure": settings.MINIO_SECURE,
-            "bucket": settings.MINIO_BUCKET
+            "endpoint": settings.MINIO_CONFIG["endpoint_url"],
+            "access_key": settings.MINIO_CONFIG["aws_access_key_id"],
+            "secret_key": settings.MINIO_CONFIG["aws_secret_access_key"],
+            "bucket": settings.MINIO_CONFIG["bucket"]
         }
         
         # Create MinIOHandler instance

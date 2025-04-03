@@ -1,0 +1,6 @@
+# requirements.txt
+minio
+requests
+pandas
+beautifulsoup4
+tqdm

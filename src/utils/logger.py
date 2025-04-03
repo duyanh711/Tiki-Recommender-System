@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from config import settings
+from config.settings import LOG_LEVEL
 
 class MinIOHandlerLogging(logging.Handler):
     """
@@ -84,7 +84,7 @@ def setup_logger(name, minio_handler=None, log_to_file=True, log_to_minio=True):
     """
     # Create logger
     logger = logging.getLogger(name)
-    logger.setLevel(getattr(logging, settings.LOG_LEVEL))
+    logger.setLevel(getattr(logging, LOG_LEVEL))
 
     # Avoid adding handlers if logger already has them
     if logger.handlers:

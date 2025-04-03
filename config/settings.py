@@ -1,5 +1,10 @@
 import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+LOG_LEVEL = "INFO"
+
 MINIO_CONFIG = {
     "endpoint_url": os.getenv("MINIO_ENDPOINT", "localhost:9000"),
     "aws_access_key_id": os.getenv("MINIO_ACCESS_KEY", "your-access-key"),

@@ -113,9 +113,12 @@ services:
       - "8080:8080"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
-      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs:z
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
       - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
-    command: webserver
+      - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+      - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
+      - ${AIRFLOW_PROJ_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+    command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow webserver"
     networks:
       - de_network
 
@@ -134,7 +137,10 @@ services:
       - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
       - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
       - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
-    command: scheduler
+      - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+      - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
+      - ${AIRFLOW_PROJ_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+    command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow scheduler"
     networks:
       - de_network
 
@@ -154,7 +160,10 @@ services:
       - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
       - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
       - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
-    command: celery worker
+      - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+      - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
+      - ${AIRFLOW_PROJ_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+    command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow celery worker"
     networks:
       - de_network
 
@@ -173,7 +182,10 @@ services:
       - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
       - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
       - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
-    command: triggerer
+      - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+      - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
+      - ${AIRFLOW_PROJ_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+    command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow triggerer"
     networks:
       - de_network
 

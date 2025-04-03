@@ -3,13 +3,14 @@ import json
 from contextlib import contextmanager
 from minio import Minio
 import pandas as pd
+import config
 
 @contextmanager
 def connect_minio(config):
     client = Minio(
-        endpoint=config.get("endpoint_url"),
-        access_key=config.get("aws_access_key_id"),
-        secret_key=config.get("aws_secret_access_key"),
+        endpoint="minio:9000",
+        access_key="minio",
+        secret_key="minio123",
         secure=False,
     )
     try:
@@ -131,3 +132,6 @@ class MinIOHandler:
         except Exception as e:
             print(f"Failed to get file from Minio at {path}: {e}")
             raise
+
+if __name__ == "__main__":
+    print(config.get("endpoint_url"))
