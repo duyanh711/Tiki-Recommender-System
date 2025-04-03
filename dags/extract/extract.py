@@ -17,7 +17,7 @@ def extract_from_tiki():
             "endpoint": settings.MINIO_CONFIG["endpoint_url"],
             "access_key": settings.MINIO_CONFIG["aws_access_key_id"],
             "secret_key": settings.MINIO_CONFIG["aws_secret_access_key"],
-            "bucket": settings.MINIO_CONFIG["bucket"]
+            "bucket": "warehouse"
         }
         
         # Create MinIOHandler instance

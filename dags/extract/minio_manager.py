@@ -11,7 +11,7 @@ def connect_minio(config):
         endpoint="minio:9000",
         access_key="minio",
         secret_key="minio123",
-        secure=False,
+        secure=False
     )
     try:
         yield client

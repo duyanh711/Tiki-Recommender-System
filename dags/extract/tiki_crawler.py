@@ -5,7 +5,7 @@ import pandas as pd
 import time
 import random
 import urllib
-import tqdm
+from tqdm import tqdm
 
 import sys
 import os
@@ -45,14 +45,15 @@ class TikiCrawler(MinIOHandler):
         self.tracking_ids_df = self.init_track_ids(self.tracking_ids_path)
 
     def init_track_ids(self, path):
-        minio_path = os.path.join(self.root_dir, path)
-        objects = list(self.client.list_objects(self.minio_config["bucket"], prefix=minio_path, recursive=True))
-        if not objects:
-            tracking_df = pd.DataFrame(columns=['pid', 'spid', 'seller_id', 'category_id', 'slug'])
-            self.put_file_to_minio(tracking_df, path, file_type="csv")
-        else:
-            tracking_df = self.get_file_from_minio(path, file_type="csv")
-        return tracking_df
+        with connect_minio(self.minio_config) as client:
+            minio_path = os.path.join(self.root_dir, path)
+            objects = list(client.list_objects(self.minio_config["bucket"], prefix=minio_path, recursive=True))
+            if not objects:
+                tracking_df = pd.DataFrame(columns=['pid', 'spid', 'seller_id', 'category_id', 'slug'])
+                self.put_file_to_minio(tracking_df, path, file_type="csv")
+            else:
+                tracking_df = self.get_file_from_minio(path, file_type="csv")
+            return tracking_df
 
     def tracking_ids(self, id):
         new_id_df = pd.DataFrame([id], columns=self.tracking_ids_df.columns)
@@ -90,8 +91,7 @@ class TikiCrawler(MinIOHandler):
     def fetch_ids(self, urlKey, category, page=10):
         self.params_page['urlKey'] = urlKey
         self.params_page['category'] = category
-        name = self.categories_df.loc[self.categories_df['category_id'] == str(category), 'title'].values[0]
-
+        name = self.categories_df.loc[self.categories_df['category_id'] == category, 'title']
         ids = []
         logger.info(f"Fetching products id from category: {name}")
         for i in tqdm(range(1, page + 1), desc="Pages Scraped", unit="page"):
@@ -199,18 +199,19 @@ class TikiCrawler(MinIOHandler):
         return products
 
     def num_products(self):
-        objects = self.client.list_objects(self.minio_config["bucket"], prefix=self.root_dir, recursive=True)
+        with connect_minio(self.minio_config) as client:
+            objects = client.list_objects(self.minio_config["bucket"], prefix=self.root_dir, recursive=True)
         
         level1_folders = set()
         level2_subfolders = {}
 
         for obj in objects:
             parts = obj.object_name[len(self.root_dir):].split('/')
-            if len(parts) > 1:
+            if len(parts) > 1: 
                 level1_folder = parts[0]
                 level1_folders.add(level1_folder)
                 
-                if len(parts) > 2 and parts[1]:
+                if len(parts) > 2 and parts[1]: 
                     level2_folder = f"{level1_folder}/{parts[1]}"
                     if level1_folder not in level2_subfolders:
                         level2_subfolders[level1_folder] = set()
@@ -219,7 +220,7 @@ class TikiCrawler(MinIOHandler):
         total_subfolders = 0
         products_num = []
         for level1_folder, subfolders in level2_subfolders.items():
-            products_num.append({level1_folder: len(subfolders)})
+            products_num.append({level1_folder:len(subfolders)})
             total_subfolders += len(subfolders)
 
         return products_num, total_subfolders
@@ -244,6 +245,8 @@ class TikiCrawler(MinIOHandler):
 #     # self.put_file_to_minio(df,path,file_type="csv")
 
 #     return df
+
+
 
 # if __name__ == "__main__":
 #     print(fetch_categories())

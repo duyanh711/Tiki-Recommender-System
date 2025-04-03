@@ -9,7 +9,7 @@ MINIO_CONFIG = {
     "endpoint_url": os.getenv("MINIO_ENDPOINT", "localhost:9000"),
     "aws_access_key_id": os.getenv("MINIO_ACCESS_KEY", "your-access-key"),
     "aws_secret_access_key": os.getenv("MINIO_SECRET_KEY", "your-secret-key"),
-    "bucket": os.getenv("MINIO_BUCKET", "your-bucket-name"),
+    "bucket": os.getenv("DATALAKE_BUCKET", "your-bucket-name"),
 }
 
 HEADERS = {
