@@ -1,5 +1,7 @@
 from dags.extract.minio_manager import MinIOHandler, connect_minio
+import re
 from typing import Dict, List, Optional, Tuple, Callable, Any
+import pandas as pd
 from src.utils.logger import setup_logger
 
 
@@ -187,3 +189,54 @@ class TikiTransformer(MinIOHandler):
         def get_categories(self, path = "categories.csv"):
             categories_df = self.get_file_from_minio(path,file_type="csv")
             return categories_df
+        
+        def transform_data(self, data_type: str = "products") -> pd.DataFrame:
+            type_map = {
+                "products": (r'product.*\.json$', self.product_parser),
+                "sellers": (r'seller.*\.json$', self.seller_parser),
+                "reviews": (r'reviews.*\.json$', self.reviews_parser)
+            }
+
+            if data_type not in type_map:
+                valid_types = list(type_map.keys())
+                raise ValueError(f"Invalid data_type: '{data_type}'. Accepted values are: {valid_types}")
+
+            pattern_str, parser_func = type_map[data_type]
+            pattern = re.compile(pattern_str) # Compile regex để hiệu quả hơn
+            all_parsed_data: List[Any] = []
+
+            logger.info(f"Starting data transformation for type '{data_type}' from root: {self.minio_config['bucket']}/{self.root_dir}")
+
+            try:
+                with connect_minio(self.minio_config) as client:
+                    objects = client.list_objects(self.minio_config["bucket"], prefix=self.root_dir, recursive=True)
+
+                    for obj in objects:
+                        if obj.object_name.endswith('/'):
+                            continue
+                        file_name = obj.object_name.split('/')[-1]
+                        if pattern.match(file_name):
+                            parsed_data = self.parse_json_file(obj.object_name, parser_func)
+                            if parsed_data:
+                                if isinstance(parsed_data, list):
+                                    all_parsed_data.extend(parsed_data)
+                                else:
+                                    all_parsed_data.append(parsed_data)
+                            else:
+                                logger.warning(f"Parser returned None for file: {obj.object_name}")
+
+            except Exception as e:
+                logger.error(f"Failed to list or process objects in MinIO. Error: {e}", exc_info=True)
+                return pd.DataFrame()
+
+            logger.info(f"Transformation complete for type '{data_type}'. Found {len(all_parsed_data)} records.")
+
+            if not all_parsed_data:
+                logger.warning(f"No data found or parsed for type '{data_type}'. Returning empty DataFrame.")
+                return pd.DataFrame()
+
+            try:
+                return pd.DataFrame(all_parsed_data)
+            except Exception as e:
+                logger.error(f"Failed to create DataFrame from parsed data. Error: {e}", exc_info=True)
+                return pd.DataFrame()
