@@ -95,8 +95,10 @@ class TikiTransformer(MinIOHandler):
                             result['warranty_type'] = value
                         elif name == _WARRANTY_LOCATION_KEY:
                             result['warranty_location'] = value
-            except Exception:
-                raise
+            except (AttributeError, KeyError, TypeError, IndexError) as e:
+                product_id = json_data.get('id', 'N/A')
+                logger.error(f"Error parsing product {product_id}: {e}", exc_info=True)
+                return result
 
             return result
         
@@ -125,3 +127,51 @@ class TikiTransformer(MinIOHandler):
                 logger.error(f"Error parsing seller {seller_id}: {e}", exc_info=True)
                 return result
             return result
+        
+        @staticmethod
+        def parse_review(json_data: Dict[str, Any]) -> Dict[str, Any]:
+            reviews = []
+            comments = json_data.get('data', [])
+            
+            for idx, comment in comments:
+                try:
+                    review = {
+                        'review_id': comment.get('id'),
+                        'product_id': comment.get('product_id'),
+                        'seller_id': comment.get('seller', {}).get("id"),
+                        'title': comment.get('title'),
+                        'content': comment.get('content'),
+                        'status': comment.get('status'),
+                        'thank_count': comment.get('thank_count'),
+                        'rating': comment.get('rating'),
+                        'created_at': comment.get('created_at'),
+                        'customer_id': comment.get('customer_id')
+                    }
+
+                    created_by = comment.get('created_by', {})
+                    if created_by:
+                        review.update({
+                            'customer_name': created_by.get('full_name'),
+                            'purchased_at': created_by.get('purchased_at'),
+                            'avatar_url': created_by.get('avatar_url'),
+                            'joined_time': created_by.get('contribute_info', {}).get('summary', {}).get('joined_time'),
+                            'total_review': created_by.get('contribute_info', {}).get('summary', {}).get('total_review', 0),
+                            'total_thank': created_by.get('contribute_info', {}).get('summary', {}).get('total_thank', 0)
+                        })
+                    else:
+                        review.update({
+                            'customer_name': None,
+                            'purchased_at': None,
+                            'avatar_url': None,
+                            'joined_time': None,
+                            'total_review': 0,
+                            'total_thank': 0
+                        })
+
+                    reviews.append(review)
+                except Exception as e:
+                    review_id = comment.get('id', f'index_{idx}')
+                    logger.error(f"Error parsing review {review_id}: {e}", exc_info=True)
+                    continue
+                
+            return reviews
