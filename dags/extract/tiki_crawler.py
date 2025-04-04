@@ -24,19 +24,19 @@ logger = setup_logger(__name__)
 class TikiCrawler(MinIOHandler):
     def __init__(self, minio_config, root_dir="bronze/tiki/", tmp_dir="./tmp"):
         super().__init__(minio_config, tmp_dir, root_dir)
-        self.base_urls = BASE_URLS
-        self.headers = HEADERS
+        self._base_urls = BASE_URLS
+        self._headers = HEADERS
         
-        self.base_url = BASE_URLS['base_url']
-        self.base_page_url = BASE_URLS['base_page_url']
-        self.base_product_url = BASE_URLS["base_product_url"]
-        self.base_reviews_url = BASE_URLS["base_reviews_url"]
-        self.base_seller_url = BASE_URLS["base_seller_url"]
+        self._base_url = BASE_URLS['base_url']
+        self._base_page_url = BASE_URLS['base_page_url']
+        self._base_product_url = BASE_URLS["base_product_url"]
+        self._base_reviews_url = BASE_URLS["base_reviews_url"]
+        self._base_seller_url = BASE_URLS["base_seller_url"]
 
-        self.params_page = PARAMS_PAGE
-        self.params_product = PARAMS["params_product"]
-        self.params_reviews = PARAMS["params_reviews"]
-        self.params_seller = PARAMS["params_seller"]
+        self._params_page = PARAMS_PAGE
+        self._params_product = PARAMS["params_product"]
+        self._params_reviews = PARAMS["params_reviews"]
+        self._params_seller = PARAMS["params_seller"]
 
         self.categories_path = "categories.csv"
         self.tracking_ids_path = "tracking_ids.csv"
@@ -89,15 +89,15 @@ class TikiCrawler(MinIOHandler):
         return df
 
     def fetch_ids(self, urlKey, category, page=10):
-        self.params_page['urlKey'] = urlKey
-        self.params_page['category'] = category
+        self._params_page['urlKey'] = urlKey
+        self._params_page['category'] = category
         name = self.categories_df.loc[self.categories_df['category_id'] == category, 'title']
         ids = []
         logger.info(f"Fetching products id from category: {name}")
         for i in tqdm(range(1, page + 1), desc="Pages Scraped", unit="page"):
-            self.params_page['page'] = i
+            self._params_page['page'] = i
             response = requests.get(
-                self.base_page_url, headers=self.headers, params=self.params_page)
+                self._base_page_url, headers=self._headers, params=self._params_page)
 
             if response.status_code == 200:
                 data = response.json().get('data', [])
@@ -118,9 +118,9 @@ class TikiCrawler(MinIOHandler):
         seller_id = id['seller_id']
         slug = id['slug']
 
-        url = self.base_product_url.format(pid)
-        self.params_product['spid'] = spid
-        response = requests.get(url, headers=self.headers, params=self.params_product)
+        url = self._base_product_url.format(pid)
+        self._params_product['spid'] = spid
+        response = requests.get(url, headers=self._headers, params=self._params_product)
         if response.status_code == 200:
             path = f"{slug}/{pid}_{seller_id}/product_{pid}_{seller_id}.json"
             self.put_file_to_minio(response.json(), path, file_type="json")
@@ -133,13 +133,13 @@ class TikiCrawler(MinIOHandler):
         seller_id = id['seller_id']
         slug = id['slug']
 
-        self.params_reviews['product_id'] = pid
-        self.params_reviews['spid'] = spid
-        self.params_reviews['seller_id'] = seller_id
+        self._params_reviews['product_id'] = pid
+        self._params_reviews['spid'] = spid
+        self._params_reviews['seller_id'] = seller_id
 
         for i in range(1, page + 1):
-            self.params_reviews['page'] = i
-            response = requests.get(self.base_reviews_url, headers=self.headers, params=self.params_reviews)
+            self._params_reviews['page'] = i
+            response = requests.get(self._base_reviews_url, headers=self._headers, params=self._params_reviews)
             if response.status_code == 200:
                 try:
                     file = response.json()
@@ -158,11 +158,11 @@ class TikiCrawler(MinIOHandler):
         seller_id = id['seller_id']
         slug = id['slug']
 
-        self.params_seller['mpid'] = pid
-        self.params_seller['spid'] = spid
-        self.params_seller['seller_id'] = seller_id
+        self._params_seller['mpid'] = pid
+        self._params_seller['spid'] = spid
+        self._params_seller['seller_id'] = seller_id
 
-        response = requests.get(self.base_seller_url, headers=self.headers, params=self.params_seller)
+        response = requests.get(self._base_seller_url, headers=self._headers, params=self._params_seller)
         if response.status_code == 200:
             path = f"{slug}/{pid}_{seller_id}/seller_{pid}_{seller_id}.json"
             self.put_file_to_minio(response.json(), path, file_type="json")
