@@ -28,6 +28,7 @@ class SparkManager:
         file_name = "/".join([layer, schema, table.replace(f"{layer}_", "")])
         file_path = f"{base_dir}/{file_name}.parquet"
         logger.info(f"File path: {file_path}")
+        return file_path
 
     def load_input(self, spark: SparkSession, layer, schema, table):
         file_path = self._get_path(layer, schema, table)
