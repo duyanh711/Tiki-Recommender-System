@@ -175,3 +175,15 @@ class TikiTransformer(MinIOHandler):
                     continue
                 
             return reviews
+        
+        def parse_json(self,file_path, parser_func):
+            try:
+                    data = self.get_file_from_minio(file_path, file_type="json")
+                    return parser_func(data)
+            except Exception as e:
+                print(f"Error in JSON: {file_path}: {e}")
+                return None
+
+        def get_categories(self, path = "categories.csv"):
+            categories_df = self.get_file_from_minio(path,file_type="csv")
+            return categories_df
