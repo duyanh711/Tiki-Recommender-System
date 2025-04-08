@@ -5,6 +5,12 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 LOG_LEVEL = "INFO"
 
+SPARK_CONFIG = {
+    "master": "local[*]",
+    "appNamePrefix": "AirflowTikiApp"
+    # "driverMemory": "1g"
+}
+
 MINIO_CONFIG = {
     "endpoint_url": os.getenv("MINIO_ENDPOINT", "localhost:9000"),
     "aws_access_key_id": os.getenv("MINIO_ACCESS_KEY", "your-access-key"),

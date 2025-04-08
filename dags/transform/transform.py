@@ -12,12 +12,19 @@ from typing import Dict, List, Optional, Tuple, Callable, Any
 
 logger = setup_logger(__name__)
 
-minio_config = {
+MINIO_CONFIG = {
             "endpoint": settings.MINIO_CONFIG["endpoint_url"],
             "access_key": settings.MINIO_CONFIG["aws_access_key_id"],
             "secret_key": settings.MINIO_CONFIG["aws_secret_access_key"],
             "bucket": "warehouse"
         }
+SPARK_SETTINGS = settings.SPARK_CONFIG
+SPARK_MASTER = SPARK_SETTINGS.get("master", "local[*]")
+SPARK_APP_NAME_PREFIX = SPARK_SETTINGS.get("appNamePrefix", "AirflowTikiApp")
+
+SPARK_CONFIG = {"master": SPARK_MASTER}
+
+spark = SparkSession.builder
 
 @udf(IntegerType())
 def convert_warranty_period(warranty):
@@ -65,10 +72,6 @@ def convert_to_days(joined_time):
         DataFrame: Data frame of all data
     '''  
 
-minio_endpoint_url = os.getenv("MINIO_ENDPOINT_URL", "http://minio:9000")
-minio_access_key_val = os.getenv("MINIO_ROOT_USER", "minio")
-minio_secret_key_val = os.getenv("MINIO_ROOT_PASSWORD", "minio123")
-silver_bucket_name = MINIO_BUCKET
 
 def _create_spark_session(app_name: str) -> SparkSession:
     """Tạo và cấu hình SparkSession để kết nối MinIO."""
@@ -76,9 +79,9 @@ def _create_spark_session(app_name: str) -> SparkSession:
     return SparkSession.builder \
         .appName(app_name) \
         .master(SPARK_CONFIG.get("master", "local[*]")) \
-        .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint_url) \
-        .config("spark.hadoop.fs.s3a.access.key", minio_access_key_val) \
-        .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key_val) \
+        .config("spark.hadoop.fs.s3a.endpoint", MINIO_CONFIG["endpoint"]) \
+        .config("spark.hadoop.fs.s3a.access.key", MINIO_CONFIG["access_key"]) \
+        .config("spark.hadoop.fs.s3a.secret.key", MINIO_CONFIG["secret_key"]) \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .getOrCreate()
@@ -155,7 +158,7 @@ def transform_sellers_task(ti=None, **context):
     data_type = "sellers"
     output_suffix = "sellers"
     spark = None
-    output_path = f"s3a://{silver_bucket_name}/silver/tiki/{output_suffix}/"
+    output_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/{output_suffix}/"
     final_count = 0
     success = False
 
@@ -201,7 +204,7 @@ def transform_categories_task(ti=None, **context):
     data_type = "categories"
     output_suffix = "categories"
     spark = None
-    output_path = f"s3a://{silver_bucket_name}/silver/tiki/{output_suffix}/"
+    output_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/{output_suffix}/"
     final_count = 0
     success = False
 
@@ -245,9 +248,9 @@ def transform_products_task(ti=None, **context):
     data_type = "products"
     output_suffix = "products"
     upstream_task_id = 'transform_sellers_task'
-    upstream_default_path = f"s3a://{silver_bucket_name}/silver/tiki/sellers/"
+    upstream_default_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/sellers/"
     spark = None
-    output_path = f"s3a://{silver_bucket_name}/silver/tiki/{output_suffix}/"
+    output_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/{output_suffix}/"
     final_count = 0
     success = False
 
@@ -310,9 +313,9 @@ def transform_reviews_task(ti=None, **context):
     data_type = "reviews"
     output_suffix = "reviews"
     upstream_task_id = 'transform_products_task'
-    upstream_default_path = f"s3a://{silver_bucket_name}/silver/tiki/products/"
+    upstream_default_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/products/"
     spark = None
-    output_path = f"s3a://{silver_bucket_name}/silver/tiki/{output_suffix}/"
+    output_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/{output_suffix}/"
     final_count = 0
     success = False
 
