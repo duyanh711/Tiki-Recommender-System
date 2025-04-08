@@ -82,7 +82,10 @@ services:
       - de_network
 
   airflow_init:
-    image: apache/airflow:2.7.0
+    # image: apache/airflow:2.7.0
+    build: 
+      context: .
+      dockerfile: docker/airflow/Dockerfile
     container_name: airflow_init
     depends_on:
       - de_psql
@@ -98,17 +101,24 @@ services:
       - de_network
 
   airflow_webserver:
-    image: apache/airflow:2.7.0
+    # image: apache/airflow:2.7.0
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
     container_name: airflow_webserver
     restart: always
     depends_on:
-      - airflow_init
+      airflow_init:
+        condition: service_completed_successfully
+      de_psql:
+        condition: service_healthy
     environment:
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@de_psql:5432/airflow
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@de_psql:5432/airflow
       AIRFLOW__WEBSERVER__SECRET_KEY: mysecretkey
+      PYSPARK_PYTHON: /usr/local/bin/python
     ports:
       - "8080:8080"
     volumes:
@@ -123,7 +133,10 @@ services:
       - de_network
 
   airflow_scheduler:
-    image: apache/airflow:2.7.0
+    # image: apache/airflow:2.7.0
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
     container_name: airflow_scheduler
     restart: always
     depends_on:
@@ -145,7 +158,10 @@ services:
       - de_network
 
   airflow_worker:
-    image: apache/airflow:2.7.0
+    # image: apache/airflow:2.7.0
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
     container_name: airflow_worker
     restart: always
     depends_on:
@@ -168,7 +184,10 @@ services:
       - de_network
 
   airflow_triggerer:
-    image: apache/airflow:2.7.0
+    # image: apache/airflow:2.7.0
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
     container_name: airflow_triggerer
     restart: always
     depends_on:

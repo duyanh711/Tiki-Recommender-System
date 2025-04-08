@@ -1,12 +1,14 @@
+import os
 import re
 import pandas as pd
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, when, from_unixtime, udf, isnan
-from pyspark.sql.types import IntegerType, StringType
+from pyspark.sql.types import IntegerType, StringType, TimestampType
 from config import settings
 from extract.minio_manager import MinIOHandler
 from src.utils.logger import setup_logger
 from transform.tiki_transformer import TikiTransformer
+from typing import Dict, List, Optional, Tuple, Callable, Any
 
 logger = setup_logger(__name__)
 
@@ -81,7 +83,7 @@ def _create_spark_session(app_name: str) -> SparkSession:
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .getOrCreate()
 
-def _get_raw_data(transformer: TikiTransform, data_type: str) -> Optional[pd.DataFrame]:
+def _get_raw_data(transformer: TikiTransformer, data_type: str) -> Optional[pd.DataFrame]:
     """Lấy dữ liệu raw Pandas DF từ transformer."""
     logger.info(f"Fetching raw data for type: {data_type}...")
     try:
@@ -159,7 +161,7 @@ def transform_sellers_task(ti=None, **context):
 
     try:
         spark = _create_spark_session(f"AirflowTiki{task_name}")
-        transformer = TikiTransform(MINIO_CONFIG)
+        transformer = TikiTransformer(MINIO_CONFIG)
         pandas_df = _get_raw_data(transformer, data_type)
 
         if pandas_df is not None:
@@ -205,7 +207,7 @@ def transform_categories_task(ti=None, **context):
 
     try:
         spark = _create_spark_session(f"AirflowTiki{task_name}")
-        transformer = TikiTransform(MINIO_CONFIG)
+        transformer = TikiTransformer(MINIO_CONFIG)
         pandas_df = _get_raw_data(transformer, data_type)
 
         if pandas_df is not None:
@@ -251,7 +253,7 @@ def transform_products_task(ti=None, **context):
 
     try:
         spark = _create_spark_session(f"AirflowTiki{task_name}")
-        transformer = TikiTransform(MINIO_CONFIG)
+        transformer = TikiTransformer(MINIO_CONFIG)
         pandas_df = _get_raw_data(transformer, data_type)
 
         if pandas_df is not None:
@@ -316,7 +318,7 @@ def transform_reviews_task(ti=None, **context):
 
     try:
         spark = _create_spark_session(f"AirflowTiki{task_name}")
-        transformer = TikiTransform(MINIO_CONFIG)
+        transformer = TikiTransformer(MINIO_CONFIG)
         pandas_df = _get_raw_data(transformer, data_type)
 
         if pandas_df is not None:

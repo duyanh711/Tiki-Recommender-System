@@ -4,3 +4,6 @@ requests
 pandas
 beautifulsoup4
 tqdm
+apache-airflow==2.7.0
+psycopg2-binary
+pyspark==3.4.1
