@@ -7,6 +7,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from extract.extract import extract_from_tiki
+from transform.transform import transform_categories_task, transform_products_task, transform_reviews_task, transform_sellers_task
 
 defaut_args = {
     "owner": "Gavin",
@@ -29,4 +30,25 @@ with DAG(
         python_callable=extract_from_tiki,
     )
 
-    extract_task
+    transform_sellers = PythonOperator(
+        task_id="transform_sellers_task",
+        python_callable=transform_sellers_task
+    )
+
+    transform_categories = PythonOperator(
+        task_id="transform_categories_task",
+        python_callable=transform_categories_task
+    )
+
+    transform_products = PythonOperator(
+        task_id="transform_products_task",
+        python_callable=transform_products_task
+    )
+
+    transform_reviews = PythonOperator(
+        task_id="transform_reviews_task",
+        python_callable=transform_reviews_task
+    )
+
+    extract_task >> [transform_sellers, transform_categories]
+    transform_sellers >> transform_products >> transform_reviews
