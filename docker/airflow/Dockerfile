@@ -8,7 +8,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 ARG SPARK_VERSION="3.4.1"
-ARG HADOOP_VERSION="3.3"
+ARG HADOOP_VERSION="3"
 ENV SPARK_HOME=/opt/spark
 ENV PATH=$PATH:${SPARK_HOME}/bin:${SPARK_HOME}/sbin
 ENV PYSPARK_PYTHON=python3
