@@ -104,6 +104,7 @@ class TikiTransformer(MinIOHandler):
 
         return result
     
+    @staticmethod
     def parse_seller(json_data: Dict[str, Any]) -> Dict[str, Any]:
         result = {}
         seller = json_data.get('data', {}).get('seller', {})
@@ -135,7 +136,7 @@ class TikiTransformer(MinIOHandler):
         reviews = []
         comments = json_data.get('data', [])
         
-        for idx, comment in comments:
+        for idx, comment in enumerate(comments):
             try:
                 review = {
                     'review_id': comment.get('id'),
@@ -183,7 +184,7 @@ class TikiTransformer(MinIOHandler):
                 data = self.get_file_from_minio(file_path, file_type="json")
                 return parser_func(data)
         except Exception as e:
-            print(f"Error in JSON: {file_path}: {e}")
+            logger.error(f"Error in JSON: {file_path}: {e}")
             return None
 
     def get_categories(self, path = "categories.csv"):
@@ -192,9 +193,9 @@ class TikiTransformer(MinIOHandler):
     
     def transform_data(self, data_type: str = "products") -> pd.DataFrame:
         type_map = {
-            "products": (r'product.*\.json$', self.product_parser),
-            "sellers": (r'seller.*\.json$', self.seller_parser),
-            "reviews": (r'reviews.*\.json$', self.reviews_parser)
+            "products": (r'product.*\.json$', self.parse_product),
+            "sellers": (r'seller.*\.json$', self.parse_seller),
+            "reviews": (r'reviews.*\.json$', self.parse_review)
         }
 
         if data_type not in type_map:
@@ -216,7 +217,7 @@ class TikiTransformer(MinIOHandler):
                         continue
                     file_name = obj.object_name.split('/')[-1]
                     if pattern.match(file_name):
-                        parsed_data = self.parse_json_file(obj.object_name, parser_func)
+                        parsed_data = self.parse_json(obj.object_name, parser_func)
                         if parsed_data:
                             if isinstance(parsed_data, list):
                                 all_parsed_data.extend(parsed_data)

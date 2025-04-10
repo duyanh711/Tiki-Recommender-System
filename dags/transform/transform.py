@@ -79,11 +79,17 @@ def _create_spark_session(app_name: str) -> SparkSession:
     return SparkSession.builder \
         .appName(app_name) \
         .master(SPARK_CONFIG.get("master", "local[*]")) \
-        .config("spark.hadoop.fs.s3a.endpoint", MINIO_CONFIG["endpoint"]) \
-        .config("spark.hadoop.fs.s3a.access.key", MINIO_CONFIG["access_key"]) \
-        .config("spark.hadoop.fs.s3a.secret.key", MINIO_CONFIG["secret_key"]) \
+        .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+        .config("spark.hadoop.fs.s3a.access.key", "minio") \
+        .config("spark.hadoop.fs.s3a.secret.key", "minio123") \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+        .config("spark.sql.parquet.int96RebaseModeInWrite", "CORRECTED") \
+        .config("spark.sql.parquet.datetimeRebaseModeInWrite", "CORRECTED") \
+        .config("spark.sql.catalogImplementation", "in-memory") \
+        .config("spark.jars.packages",
+                f"org.apache.hadoop:hadoop-aws:3.3.4,"
+                f"com.amazonaws:aws-java-sdk-bundle:1.12.367") \
         .getOrCreate()
 
 def _get_raw_data(transformer: TikiTransformer, data_type: str) -> Optional[pd.DataFrame]:
@@ -93,7 +99,7 @@ def _get_raw_data(transformer: TikiTransformer, data_type: str) -> Optional[pd.D
         if data_type == "categories":
             df = transformer.get_categories()
         else:
-            df = transformer.transform_data(type=data_type)
+            df = transformer.transform_data(data_type)
 
         if df is None or df.empty:
             logger.warning(f"Raw data for type '{data_type}' is empty or failed to load.")

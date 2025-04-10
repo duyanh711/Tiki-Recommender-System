@@ -23,11 +23,11 @@ class MinioManager:
     def __init__(self, config, tmp_dir="./tmp", root_dir="bronze/tiki"):
         self._config = config
         self._temp_dir = tmp_dir
-        self._root_dir = root_dir
+        self.root_dir = root_dir
         os.makedirs(self._temp_dir, exist_ok=True)
 
     def _get_minio_path(self, path):
-        return os.path.join(self._root_dir, path)
+        return os.path.join(self.root_dir, path)
     
     def put_file(self, file, path, file_type="json"):
         try:
@@ -81,7 +81,7 @@ class MinIOHandler:
     def __init__(self, minio_config, tmp_dir = "./tmp", root_dir = "bronze/tiki"):
         self.minio_config = minio_config
         self._temp_dir = tmp_dir
-        self._root_dir = root_dir
+        self.root_dir = root_dir
         
     def put_file_to_minio(self, file, path, file_type="json"):
         try:
@@ -94,7 +94,7 @@ class MinIOHandler:
                 file.to_csv(tmp_file_path, index=False)
 
             with connect_minio(self.minio_config) as client:
-                minio_path = os.path.join(self._root_dir, path)
+                minio_path = os.path.join(self.root_dir, path)
                 client.fput_object(self.minio_config["bucket"], minio_path, tmp_file_path)
                 print(f"Successfully uploaded data to Minio at {path}")
 
@@ -110,8 +110,8 @@ class MinIOHandler:
             os.makedirs(os.path.dirname(tmp_file_path), exist_ok=True)
 
             with connect_minio(self.minio_config) as client:
-                if not path.startswith(self._root_dir):
-                    minio_path = os.path.join(self._root_dir, path)
+                if not path.startswith(self.root_dir):
+                    minio_path = os.path.join(self.root_dir, path)
                 else:
                     minio_path = path
 
