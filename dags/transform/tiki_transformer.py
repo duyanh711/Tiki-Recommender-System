@@ -218,6 +218,7 @@ class TikiTransformer(MinIOHandler):
                     file_name = obj.object_name.split('/')[-1]
                     if pattern.match(file_name):
                         parsed_data = self.parse_json(obj.object_name, parser_func)
+                        # logger.info(parsed_data)
                         if parsed_data:
                             if isinstance(parsed_data, list):
                                 all_parsed_data.extend(parsed_data)
