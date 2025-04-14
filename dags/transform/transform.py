@@ -2,7 +2,7 @@ import os
 import re
 import pandas as pd
 from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import col, when, from_unixtime, udf, isnan
+from pyspark.sql.functions import col, when, from_unixtime, udf, isnan, explode
 from pyspark.sql.types import IntegerType, StringType, TimestampType
 from config import settings
 from extract.minio_manager import MinIOHandler
@@ -392,33 +392,72 @@ def transform_reviews_task(ti=None, **context):
 # Create gold layer
 def build_product_gold_layer_task():
     task_name = "BronzeToProductGold"
-    data_type = "products"
     output_suffix = "products"
     spark = None
-    output_path = f"s3a://{MINIO_CONFIG['bucket']}/gold/tiki/{output_suffix}/"
-    final_count = 0
-    success = False
+    input_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/{output_suffix}/"
+    output_path = f"s3a://{MINIO_CONFIG['bucket']}/gold/tiki"
+    spark = None
+    results = {}
 
     try:
-        spark = _create_spark_session(f"AirflowTiki{task_name}GoldLayer")
-        transformer = TikiTransformer(MINIO_CONFIG)
-        pandas_df = _get_raw_data(transformer, data_type)
+        spark = _create_spark_session(f"AirflowTiki{task_name}")
+        silver_products_df = _read_parquet_from_path(spark, input_path)
 
-        if pandas_df is not None:
-            sellers_spark_df = spark.createDataFrame(pandas_df)
+        if silver_products_df is None:
+            logger.warning(f"Input silver_products is empty or could not be read from {input_path}. Skipping {task_name}.")
+            return {"outputs": results}
+        
+        select_columns_gold_products = ["product_id", "seller_id", "product_sku", "product_name", "product_url", "images_url", "description", "price", \
+                                        "discount_rate", "inventory_status", "inventory_type", "quantity_sold", "rating_average", "review_count" \
+                                        "specifications", "breadcrumbs", "category_id", "is_authentic", "is_freeship_xtra", "is_top_deal", "return_reason" \
+                                        "brand_id", "authors", "warranty_type", "warranty_location", "warranty_period_days", "return_policy"]
+        existing_select_columns = [c for c in select_columns_gold_products if c in silver_products_df.columns]
+        gold_products = silver_products_df.select(*existing_select_columns)
+        output_path_products = f"{output_path}/products/"
+        count_products = _write_output_parquet(gold_products, output_path_products)
+        results["products"] = {"output_path": output_path_products, "record_count": count_products}
 
-            logger.info("Applying specific transformations for Sellers...")
+        output_path_authors = f"{output_path}/authors/"
+        if "authors" in silver_products_df.columns:
+            logger.info("Processing 'authors' column...")
+            try:
+                exploded_authors_df = silver_products_df \
+                    .filter(col("authors").isNotNull()) \
+                    .withColumn("author_tuple", explode(col("authors"))) \
+                    .select(
+                        "product_id", "seller_id",
+                        col("author_tuple._1").alias("author_id"),
+                        col("author_tuple._2").alias("author_name")
+                    )
 
-            final_count = sellers_spark_df.count() # Lấy count trước khi ghi
-            _write_output_parquet(sellers_spark_df, output_path)
-            success = True
-            logger.info(f"Successfully transformed {final_count} {task_name} records.")
+                gold_authors = exploded_authors_df \
+                    .select("author_id", "author_name") \
+                    .filter(col("author_id").isNotNull()) \
+                    .drop_duplicates(["author_id"])
+                count_authors = _write_output_parquet(gold_authors, output_path_authors)
+                results["authors"] = {"output_path": output_path_authors, "record_count": count_authors}
+                logger.info(f"Created gold_authors with {count_authors} unique records.")
+            except Exception as e_auth:
+                logger.error(f"Failed processing 'authors' column (expected tuple access). Error: {e_auth}", exc_info=True)
         else:
-            logger.warning(f"Skipping write for {task_name} due to empty raw data.")
-            output_path = None
+            logger.warning("Column 'authors' not found in silver_products. Skipping author tables.")
+        
+        output_path_brands = f"{output_path}/brands/"
+        results["brands"] = {"output_path": None, "record_count": 0}
+        if "brand_id" in silver_products_df.columns:
+            gold_brands = silver_products_df \
+                .select("brand_id", "brand_name") \
+                .filter(col("brand_id").isNotNull() & (col("brand_id") != 0)) \
+                .drop_duplicates(["brand_id"])
 
-        return {"output_path": output_path, "record_count": final_count if success else 0}
+            count_brands = _write_output_parquet(gold_brands, output_path_brands)
+            results["brands"] = {"output_path": output_path_brands, "record_count": count_brands}
+            logger.info(f"Created gold_brands with {count_brands} unique records.")
+        else:
+            logger.warning("Column 'brand_id' not found in silver_products. Skipping gold_brands.")
 
+        logger.info(f"Finished {task_name}. Results: {results}")
+        return results
     except Exception as e:
         logger.error(f"An error occurred during {task_name} transformation: {e}", exc_info=True)
         raise
@@ -426,3 +465,5 @@ def build_product_gold_layer_task():
         if spark:
             logger.info(f"Stopping Spark session for {task_name}.")
             spark.stop()
+
+    
