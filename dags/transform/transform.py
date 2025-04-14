@@ -546,3 +546,79 @@ def build_review_gold_layer_task():
         if spark:
             logger.info(f"Stopping Spark session for {task_name}.")
             spark.stop()
+
+
+def build_gold_categories_task():
+    task_name = "SilverToGoldCategories"
+    silver_input_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/categories/"
+    gold_output_path = f"s3a://{MINIO_CONFIG['bucket']}/gold/tiki/categories/"
+    spark = None
+    final_count = 0
+    output_path_result = None
+
+    try:
+        spark = _create_spark_session(f"{SPARK_APP_NAME_PREFIX}{task_name}")
+
+        silver_categories_df = _read_parquet_from_path(spark, silver_input_path)
+
+        if silver_categories_df is not None:
+            logger.info(f"Read {silver_categories_df.count()} records from {silver_input_path}")
+            logger.info("Applying transformations for Gold Categories...")
+            gold_categories = silver_categories_df
+
+            final_count = _write_output_parquet(gold_categories, gold_output_path)
+            output_path_result = gold_output_path
+            logger.info(f"Finished transforming {task_name}. Records written: {final_count}.")
+        else:
+            logger.warning(f"Input silver_categories is empty or could not be read from {silver_input_path}. Skipping {task_name}.")
+
+        return {"output_path": output_path_result, "record_count": final_count}
+
+    except Exception as e:
+        logger.error(f"An error occurred during {task_name} transformation: {e}", exc_info=True)
+        raise
+    finally:
+        if spark:
+            logger.info(f"Stopping Spark session for {task_name}.")
+            spark.stop()
+
+
+def build_gold_sellers_task():
+    task_name = "SilverToGoldSellers"
+    silver_input_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/sellers/"
+    gold_output_path = f"s3a://{MINIO_CONFIG['bucket']}/gold/tiki/sellers/"
+    spark = None
+    final_count = 0
+    output_path_result = None
+
+    try:
+        spark = _create_spark_session(f"{SPARK_APP_NAME_PREFIX}{task_name}")
+
+        silver_sellers_df = _read_parquet_from_path(spark, silver_input_path)
+
+        if silver_sellers_df is not None:
+            logger.info(f"Read {silver_sellers_df.count()} records from {silver_input_path}")
+            logger.info("Applying transformations for Gold Sellers...")
+            gold_sellers_columns = [
+                "seller_id", "seller_name", "icon_url", "avg_rating_point",
+                "review_count", "total_follower", "days_since_joined",
+                "is_official", "store_level"
+            ]
+            existing_columns = [c for c in gold_sellers_columns if c in silver_sellers_df.columns]
+            gold_sellers = silver_sellers_df.select(*existing_columns)
+
+            final_count = _write_output_parquet(gold_sellers, gold_output_path)
+            output_path_result = gold_output_path
+            logger.info(f"Finished transforming {task_name}. Records written: {final_count}.")
+        else:
+            logger.warning(f"Input silver_sellers is empty or could not be read from {silver_input_path}. Skipping {task_name}.")
+
+        return {"output_path": output_path_result, "record_count": final_count}
+
+    except Exception as e:
+        logger.error(f"An error occurred during {task_name} transformation: {e}", exc_info=True)
+        raise
+    finally:
+        if spark:
+            logger.info(f"Stopping Spark session for {task_name}.")
+            spark.stop()

@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from extract.extract import extract_from_tiki
 from transform.transform import transform_categories_task, transform_products_task, transform_reviews_task, transform_sellers_task, \
-                                build_product_gold_layer_task, build_review_gold_layer_task
+                                build_product_gold_layer_task, build_review_gold_layer_task, build_gold_categories_task, build_gold_sellers_task
 
 defaut_args = {
     "owner": "Gavin",
@@ -56,9 +56,20 @@ with DAG(
     #     python_callable=build_product_gold_layer_task
     # )
 
-    build_reviews_gold_layer = PythonOperator(
-        task_id="build_review_gold_layer_task",
-        python_callable=build_review_gold_layer_task
+    # build_reviews_gold_layer = PythonOperator(
+    #     task_id="build_review_gold_layer_task",
+    #     python_callable=build_review_gold_layer_task
+    # )
+
+    build_categories_gold_layer = PythonOperator(
+        task_id="build_category_gold_layer_task",
+        python_callable=build_gold_categories_task
+    )
+
+    
+    build_sellers_gold_layer = PythonOperator(
+        task_id="build_seller_gold_layer_task",
+        python_callable=build_gold_sellers_task
     )
 
     # extract_task >> [transform_sellers, transform_categories]
@@ -67,4 +78,4 @@ with DAG(
     # transform_reviews
 
     # build_products_gold_layer
-    build_reviews_gold_layer
+    build_gold_categories_task, build_gold_sellers_task
