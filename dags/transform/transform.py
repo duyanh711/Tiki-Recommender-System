@@ -119,8 +119,6 @@ def _read_upstream_parquet(spark: SparkSession, ti: Optional[Any], task_id: str,
     if not input_path:
         input_path = default_path
         logger.warning(f"Could not pull path from XCom for task '{task_id}', using default: {input_path}")
-        # Có thể raise lỗi ở đây nếu XCom là bắt buộc:
-        # raise ValueError(f"Input path for task '{task_id}' not found in XComs!")
 
     logger.info(f"Reading upstream data from: {input_path}")
     try:
@@ -134,15 +132,35 @@ def _read_upstream_parquet(spark: SparkSession, ti: Optional[Any], task_id: str,
         # return None
         raise
 
+
+def _read_parquet_from_path(spark: SparkSession, input_path: str):
+    logger.info(f"Reading data directly from fixed path: {input_path}")
+    
+    try:
+        df = spark.read.parquet(input_path)
+        if df.first() is None:
+            logger.warning(f"Data read from {input_path} is empty.")
+            return None
+        else:
+            logger.info(f"Data read successfully from {input_path}")
+            return df
+    except Exception as e:
+        error_str = str(e)
+        if "Path does not exist" in error_str or "FileNotFoundException" in error_str:
+            logger.error(f"CRITICAL: Input path does not exist: {input_path}.")
+        else:
+            logger.error(f"CRITICAL: Failed to read data from {input_path}: {e}", exc_info=True)
+        raise ValueError(f"Critical error: Failed to read required input data from {input_path}") from e
+
+
 def _write_output_parquet(df: DataFrame, output_path: str) -> int:
     """Ghi Spark DataFrame ra Parquet."""
     logger.info(f"Writing transformed data to {output_path}")
     df.write.mode("overwrite").parquet(output_path)
     count = df.count() # Lấy count sau khi ghi có thể không chính xác nếu có lỗi, nên lấy trước hoặc bỏ qua
-    # count = spark.read.parquet(output_path).count() # Cách chính xác hơn để lấy count sau khi ghi
-    logger.info(f"Successfully wrote data to {output_path}.") # Ghi số lượng nếu bạn lấy count
-    # Tạm thời trả về 0 vì count() có thể tốn kém
+    logger.info(f"Successfully wrote data to {output_path} with {count} records.") # Ghi số lượng nếu bạn lấy count
     return 0 # Hoặc tính count trước khi ghi nếu cần
+
 
 def _push_xcoms_result(ti: Optional[Any], output_path: Optional[str], record_count: Optional[int]):
     """Push output path và record count lên XComs."""
@@ -155,8 +173,6 @@ def _push_xcoms_result(ti: Optional[Any], output_path: Optional[str], record_cou
             ti.xcom_push(key="record_count", value=record_count if record_count is not None else 0)
         logger.info(f"Pushed XComs: output_path={output_path}, record_count={record_count}")
 
-
-# --- TASK FUNCTIONS ĐÃ REFACTOR ---
 
 def transform_sellers_task(ti=None, **context):
     """Task transform sellers đã refactor."""
@@ -363,6 +379,44 @@ def transform_reviews_task(ti=None, **context):
             output_path = None
 
         _push_xcoms_result(ti, output_path, final_count if success else 0)
+        return {"output_path": output_path, "record_count": final_count if success else 0}
+
+    except Exception as e:
+        logger.error(f"An error occurred during {task_name} transformation: {e}", exc_info=True)
+        raise
+    finally:
+        if spark:
+            logger.info(f"Stopping Spark session for {task_name}.")
+            spark.stop()
+
+# Create gold layer
+def build_product_gold_layer_task():
+    task_name = "BronzeToProductGold"
+    data_type = "products"
+    output_suffix = "products"
+    spark = None
+    output_path = f"s3a://{MINIO_CONFIG['bucket']}/gold/tiki/{output_suffix}/"
+    final_count = 0
+    success = False
+
+    try:
+        spark = _create_spark_session(f"AirflowTiki{task_name}GoldLayer")
+        transformer = TikiTransformer(MINIO_CONFIG)
+        pandas_df = _get_raw_data(transformer, data_type)
+
+        if pandas_df is not None:
+            sellers_spark_df = spark.createDataFrame(pandas_df)
+
+            logger.info("Applying specific transformations for Sellers...")
+
+            final_count = sellers_spark_df.count() # Lấy count trước khi ghi
+            _write_output_parquet(sellers_spark_df, output_path)
+            success = True
+            logger.info(f"Successfully transformed {final_count} {task_name} records.")
+        else:
+            logger.warning(f"Skipping write for {task_name} due to empty raw data.")
+            output_path = None
+
         return {"output_path": output_path, "record_count": final_count if success else 0}
 
     except Exception as e:
