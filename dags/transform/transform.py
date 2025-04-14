@@ -157,9 +157,9 @@ def _write_output_parquet(df: DataFrame, output_path: str) -> int:
     """Ghi Spark DataFrame ra Parquet."""
     logger.info(f"Writing transformed data to {output_path}")
     df.write.mode("overwrite").parquet(output_path)
-    count = df.count() # Lấy count sau khi ghi có thể không chính xác nếu có lỗi, nên lấy trước hoặc bỏ qua
-    logger.info(f"Successfully wrote data to {output_path} with {count} records.") # Ghi số lượng nếu bạn lấy count
-    return 0 # Hoặc tính count trước khi ghi nếu cần
+    count = df.count()
+    logger.info(f"Successfully wrote data to {output_path} with {count} records.")
+    return count
 
 
 def _push_xcoms_result(ti: Optional[Any], output_path: Optional[str], record_count: Optional[int]):
@@ -168,8 +168,6 @@ def _push_xcoms_result(ti: Optional[Any], output_path: Optional[str], record_cou
         if output_path is not None:
             ti.xcom_push(key="output_path", value=output_path)
         if record_count is not None:
-            # Lấy record_count chính xác hơn nếu cần (ví dụ từ _write_output)
-            # Ở đây đang dùng count ước lượng hoặc 0
             ti.xcom_push(key="record_count", value=record_count if record_count is not None else 0)
         logger.info(f"Pushed XComs: output_path={output_path}, record_count={record_count}")
 
