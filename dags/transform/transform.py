@@ -464,4 +464,85 @@ def build_product_gold_layer_task():
             logger.info(f"Stopping Spark session for {task_name}.")
             spark.stop()
 
-    
+
+def build_review_gold_layer_task():
+    task_name = "BronzeToReviewGold"
+    output_suffix = "reviews"
+    spark = None
+    input_path = f"s3a://{MINIO_CONFIG['bucket']}/silver/tiki/{output_suffix}/"
+    output_path = f"s3a://{MINIO_CONFIG['bucket']}/gold/tiki"
+    spark = None
+    results = {
+        "users": {"output_path": None, "record_count": 0},
+        "reviews": {"output_path": None, "record_count": 0}
+    }
+
+    try:
+        spark = _create_spark_session(f"AirflowTiki{task_name}")
+        silver_products_df = _read_parquet_from_path(spark, input_path)
+
+        if silver_products_df is None:
+            logger.warning(f"Input silver_products is empty or could not be read from {input_path}. Skipping {task_name}.")
+            return {"outputs": results}
+        
+        select_columns_gold_reviews = ["review_id", "title", "content", "status", "rating", "product_id", "seller_id"]
+        existing_select_columns = [c for c in select_columns_gold_reviews if c in silver_products_df.columns]
+        gold_reviews = silver_products_df.select(*existing_select_columns)
+        output_path_reviews = f"{output_path}/reviews/"
+        count_products = _write_output_parquet(gold_reviews, output_path_reviews)
+        results["products"] = {"output_path": output_path_reviews, "record_count": count_products}
+
+        output_path_customers = f"{output_path}/customers/"
+        if "customer_id" in silver_products_df.columns:
+            logger.info("Processing 'customers' column...")
+            try:
+                gold_customers = silver_products_df \
+                    .filter(col("customer_id").isNotNull()) \
+                    .select(["customer_id", "customer_name"]) \
+                    .drop_duplicates(["customer_id"])
+
+                count_customers = _write_output_parquet(gold_customers, output_path_customers)
+                results["authors"] = {"output_path": output_path_customers, "record_count": count_customers}
+                logger.info(f"Created gold_customers with {count_customers} unique records.")
+            except Exception as e_auth:
+                logger.error(f"Failed processing 'customers' column. Error: {e_auth}", exc_info=True)
+        
+        output_path_customer_review = f"{output_path}/customer_review/"
+        if "customer_id" in silver_products_df.columns and "review_id" in silver_products_df.columns:
+            logger.info("Processing 'customer_review' column...")
+            try:
+                gold_customer_review = silver_products_df \
+                    .filter(col("customer_id").isNotNull() & col("review_id").isNotNull()) \
+                    .select(["customer_id", "review_id"]) \
+                    .drop_duplicates(["customer_id", "review_id"])
+
+                count_customer_review = _write_output_parquet(gold_customer_review, output_path_customer_review)
+                results["authors"] = {"output_path": output_path_customer_review, "record_count": count_customer_review}
+                logger.info(f"Created gold_customer_review with {count_customer_review} unique records.")
+            except Exception as e_auth:
+                logger.error(f"Failed processing 'gold_customer_review' column. Error: {e_auth}", exc_info=True)
+        
+        output_path_customer_product = f"{output_path}/customer_product/"
+        if "customer_id" in silver_products_df.columns and "product_id" in silver_products_df.columns:
+            logger.info("Processing 'customer_product' column...")
+            try:
+                gold_customer_product = silver_products_df \
+                    .filter(col("customer_id").isNotNull() & col("product_id").isNotNull()) \
+                    .select(["customer_id", "product_id", "seller_id", "purchased_ts"]) \
+                    .drop_duplicates()
+
+                count_customer_product = _write_output_parquet(gold_customer_product, output_path_customer_product)
+                results["authors"] = {"output_path": output_path_customer_product, "record_count": count_customer_product}
+                logger.info(f"Created gold_customer_product with {count_customer_product} unique records.")
+            except Exception as e_auth:
+                logger.error(f"Failed processing 'gold_customer_product' column. Error: {e_auth}", exc_info=True)
+
+        else:
+            logger.warning("Column 'customers' not found in silver_products. Skipping author tables.")
+    except Exception as e:
+        logger.error(f"An error occurred during {task_name} transformation: {e}", exc_info=True)
+        raise
+    finally:
+        if spark:
+            logger.info(f"Stopping Spark session for {task_name}.")
+            spark.stop()
