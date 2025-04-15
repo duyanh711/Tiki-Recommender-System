@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.providers.postgres.operators.postgres import PostgresOperator
 from datetime import datetime, timedelta
 
 import sys
@@ -9,6 +10,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from extract.extract import extract_from_tiki
 from transform.transform import transform_categories_task, transform_products_task, transform_reviews_task, transform_sellers_task, \
                                 build_product_gold_layer_task, build_review_gold_layer_task, build_gold_categories_task, build_gold_sellers_task
+
+from load.load import create_db_if_not_exists
 
 defaut_args = {
     "owner": "Gavin",
@@ -61,15 +64,27 @@ with DAG(
     #     python_callable=build_review_gold_layer_task
     # )
 
-    build_categories_gold_layer = PythonOperator(
-        task_id="build_category_gold_layer_task",
-        python_callable=build_gold_categories_task
-    )
+    # build_categories_gold_layer = PythonOperator(
+    #     task_id="build_category_gold_layer_task",
+    #     python_callable=build_gold_categories_task
+    # )
 
     
-    build_sellers_gold_layer = PythonOperator(
-        task_id="build_seller_gold_layer_task",
-        python_callable=build_gold_sellers_task
+    # build_sellers_gold_layer = PythonOperator(
+    #     task_id="build_seller_gold_layer_task",
+    #     python_callable=build_gold_sellers_task
+    # )
+
+    # create_recommender_db = PythonOperator(
+    #     task_id="create_tiki_recommender_db",
+    #     python_callable=create_db_if_not_exists
+    # )
+
+    create_tables = PostgresOperator(
+        task_id="create_tables_in_tiki_recommender",
+        postgres_conn_id="postgres_de",
+        sql="create_table.sql",
+        autocommit=True
     )
 
     # extract_task >> [transform_sellers, transform_categories]
@@ -78,4 +93,7 @@ with DAG(
     # transform_reviews
 
     # build_products_gold_layer
-    build_gold_categories_task, build_gold_sellers_task
+    # build_gold_categories_task, build_gold_sellers_task
+    # create_recommender_db
+
+    create_tables

@@ -31,6 +31,7 @@ class PostgresHandler:
         }
 
         logger.info(f"PostgresHandler initialized for {self.user}@{self.host}:{self.port}/{self.database}")
+        
 
     def _prepare_df_for_jdbc(self, df: DataFrame):
         logger.debug(f"Preparing DataFrame schema for JDBC write:")

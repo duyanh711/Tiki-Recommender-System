@@ -7,3 +7,4 @@ tqdm
 apache-airflow==2.7.0
 psycopg2-binary
 pyspark==3.4.1
+apache-airflow-providers-postgres==5.0.0

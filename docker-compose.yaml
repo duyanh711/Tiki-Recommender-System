@@ -4,12 +4,17 @@ services:
     image: postgres:15
     container_name: de_psql
     environment:
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow 
+      - POSTGRES_HOST=de_psql
+      # - POSTGRES_PORT=5432
       - POSTGRES_DB=airflow
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - ./mnt/postgresql:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -128,6 +133,7 @@ services:
       - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
       - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
       - ${AIRFLOW_PROJ_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+      - ${AIRFLOW_PROJ_DIR:-.}/create_table.sql:/opt/airflow/dags/create_table.sql
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow webserver"
     networks:
       - de_network
@@ -154,6 +160,7 @@ services:
       - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
       - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
       - ${AIRFLOW_PROJ_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+      - ${AIRFLOW_PROJ_DIR:-.}/create_table.sql:/opt/airflow/dags/create_table.sql
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow scheduler"
     networks:
       - de_network
@@ -188,6 +195,7 @@ services:
       - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
       - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
       - ${AIRFLOW_PROJ_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+      - ${AIRFLOW_PROJ_DIR:-.}/create_table.sql:/opt/airflow/dags/create_table.sql
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow celery worker"
     networks:
       - de_network
@@ -214,6 +222,7 @@ services:
       - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
       - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
       - ${AIRFLOW_PROJ_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+      - ${AIRFLOW_PROJ_DIR:-.}/create_table.sql:/opt/airflow/dags/create_table.sql
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow triggerer"
     networks:
       - de_network

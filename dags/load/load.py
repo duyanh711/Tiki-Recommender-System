@@ -11,6 +11,7 @@ from transform.tiki_transformer import TikiTransformer
 from typing import Dict, List, Optional, Tuple, Callable, Any
 from load.postgres_handler import PostgresHandler
 from transform.transform import create_spark_session, read_parquet_from_path
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 logger = setup_logger(__name__)
 
@@ -30,9 +31,28 @@ spark = SparkSession.builder
 jdbc_driver_version = "42.7.3"
 jdbc_package = f"org.postgresql:postgresql:{jdbc_driver_version}"
 
+
+def create_db_if_not_exists():
+    hook = PostgresHook(postgres_conn_id='postgres_de')
+    conn = hook.get_conn()
+    conn.autocommit = True
+    cur = conn.cursor()
+
+    cur.execute("SELECT 1 FROM pg_database WHERE datname='tiki_recommender'")
+    exists = cur.fetchone()
+    if not exists:
+        cur.execute("CREATE DATABASE tiki_recommender")
+        print("Database tiki_recommender created.")
+    else:
+        print("Database tiki_recommender already exists.")
+
+    cur.close()
+    conn.close()
+
+
 def load_gold_to_pg():
     task_name = "LoadAllGoldTablesToPg"
-    gold_base_path = f"s3a://{MINIO_CONFIG["bucket"]}/gold/tiki/"
+    gold_base_path = f"s3a://warehouse/gold/tiki/"
     write_mode = "overwrite"
     spark = None
     loaded_tables_info = {}
