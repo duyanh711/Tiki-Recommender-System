@@ -23,7 +23,7 @@ class PostgresHandler:
             self.database = os.getenv("POSTGRES_DB")
             self.user = os.getenv("POSTGRES_USER")
             self.password = os.getenv("POSTGRES_PASSWORD")
-        self.jdbc_url = f"idbc:postgresql://{self.host}:{self.port}/{self.database}"
+        self.jdbc_url = f"jdbc:postgresql://{self.host}:{self.port}/{self.database}"
         self.connection_props = {
             "user": self.user,
             "password": self.password,
@@ -75,7 +75,7 @@ class PostgresHandler:
                 url=self.jdbc_url,
                 table=table_name,
                 mode=mode,
-                properties=self.connection_properties
+                properties=self.connection_props
             )
             logger.info(f"Successfully wrote {record_count} records to table '{table_name}'.")
         except Exception as e:

@@ -11,7 +11,7 @@ from extract.extract import extract_from_tiki
 from transform.transform import transform_categories_task, transform_products_task, transform_reviews_task, transform_sellers_task, \
                                 build_product_gold_layer_task, build_review_gold_layer_task, build_gold_categories_task, build_gold_sellers_task
 
-from load.load import create_db_if_not_exists
+from load.load import create_db_if_not_exists, load_gold_to_pg
 
 defaut_args = {
     "owner": "Gavin",
@@ -80,11 +80,16 @@ with DAG(
     #     python_callable=create_db_if_not_exists
     # )
 
-    create_tables = PostgresOperator(
-        task_id="create_tables_in_tiki_recommender",
-        postgres_conn_id="postgres_de",
-        sql="create_table.sql",
-        autocommit=True
+    # create_tables = PostgresOperator(
+    #     task_id="create_tables_in_tiki_recommender",
+    #     postgres_conn_id="tiki_recommender_conn",
+    #     sql="create_table.sql",
+    #     autocommit=True
+    # )
+
+    load_gold_layer_to_db = PythonOperator(
+        task_id="load_gold_layer_to_db_task",
+        python_callable=load_gold_to_pg
     )
 
     # extract_task >> [transform_sellers, transform_categories]
@@ -96,4 +101,5 @@ with DAG(
     # build_gold_categories_task, build_gold_sellers_task
     # create_recommender_db
 
-    create_tables
+    # create_tables
+    load_gold_to_pg

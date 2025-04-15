@@ -21,6 +21,15 @@ MINIO_CONFIG = {
             "secret_key": settings.MINIO_CONFIG["aws_secret_access_key"],
             "bucket": "warehouse"
         }
+
+DB_CONFIG = {
+    "host": "de_psql",
+    "port": 5432,
+    "database": "tiki_recommender",
+    "user": "airflow",
+    "password": "airflow"
+}
+
 SPARK_SETTINGS = settings.SPARK_CONFIG
 SPARK_MASTER = SPARK_SETTINGS.get("master", "local[*]")
 SPARK_APP_NAME_PREFIX = SPARK_SETTINGS.get("appNamePrefix", "AirflowTikiApp")
@@ -61,7 +70,7 @@ def load_gold_to_pg():
 
     try:
         spark = create_spark_session(f"{SPARK_APP_NAME_PREFIX}{task_name}")
-        pg_handler = PostgresHandler()
+        pg_handler = PostgresHandler(DB_CONFIG)
         hadoop_conf = spark.sparkContext._jsc.hadoopConfiguration()
         fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(spark._jvm.java.net.URI(gold_base_path), hadoop_conf)
         hadoop_path = spark._jvm.org.apache.hadoop.fs.Path(gold_base_path)
@@ -92,7 +101,7 @@ def load_gold_to_pg():
 
         for dir_name in discovered_dirs:
             parquet_path = f"{gold_base_path}{dir_name}/"
-            postgres_table_name = f"gold_{dir_name}"
+            postgres_table_name = f"{dir_name}"
             logger.info(f"--- Processing table: {dir_name} ---")
             logger.info(f"Reading from: {parquet_path}")
             logger.info(f"Targeting Postgres table: {postgres_table_name}")
