@@ -73,8 +73,10 @@ def convert_to_days(joined_time):
     '''  
 
 
-def _create_spark_session(app_name: str) -> SparkSession:
+def create_spark_session(app_name: str) -> SparkSession:
     """Tạo và cấu hình SparkSession để kết nối MinIO."""
+    jdbc_driver_version = "42.7.3"
+    jdbc_package = f"org.postgresql:postgresql:{jdbc_driver_version}"
     logger.info(f"Creating Spark session: {app_name}")
     return SparkSession.builder \
         .appName(app_name) \
@@ -89,7 +91,8 @@ def _create_spark_session(app_name: str) -> SparkSession:
         .config("spark.sql.catalogImplementation", "in-memory") \
         .config("spark.jars.packages",
                 f"org.apache.hadoop:hadoop-aws:3.3.4,"
-                f"com.amazonaws:aws-java-sdk-bundle:1.12.367") \
+                f"com.amazonaws:aws-java-sdk-bundle:1.12.367,"
+                f"{jdbc_package}") \
         .getOrCreate()
 
 def _get_raw_data(transformer: TikiTransformer, data_type: str) -> Optional[pd.DataFrame]:
@@ -133,7 +136,7 @@ def _read_upstream_parquet(spark: SparkSession, ti: Optional[Any], task_id: str,
         raise
 
 
-def _read_parquet_from_path(spark: SparkSession, input_path: str):
+def read_parquet_from_path(spark: SparkSession, input_path: str):
     logger.info(f"Reading data directly from fixed path: {input_path}")
     
     try:
@@ -183,7 +186,7 @@ def transform_sellers_task(ti=None, **context):
     success = False
 
     try:
-        spark = _create_spark_session(f"AirflowTiki{task_name}")
+        spark = create_spark_session(f"AirflowTiki{task_name}")
         transformer = TikiTransformer(MINIO_CONFIG)
         pandas_df = _get_raw_data(transformer, data_type)
 
@@ -229,7 +232,7 @@ def transform_categories_task(ti=None, **context):
     success = False
 
     try:
-        spark = _create_spark_session(f"AirflowTiki{task_name}")
+        spark = create_spark_session(f"AirflowTiki{task_name}")
         transformer = TikiTransformer(MINIO_CONFIG)
         pandas_df = _get_raw_data(transformer, data_type)
 
@@ -275,7 +278,7 @@ def transform_products_task(ti=None, **context):
     success = False
 
     try:
-        spark = _create_spark_session(f"AirflowTiki{task_name}")
+        spark = create_spark_session(f"AirflowTiki{task_name}")
         transformer = TikiTransformer(MINIO_CONFIG)
         pandas_df = _get_raw_data(transformer, data_type)
 
@@ -340,7 +343,7 @@ def transform_reviews_task(ti=None, **context):
     success = False
 
     try:
-        spark = _create_spark_session(f"AirflowTiki{task_name}")
+        spark = create_spark_session(f"AirflowTiki{task_name}")
         transformer = TikiTransformer(MINIO_CONFIG)
         pandas_df = _get_raw_data(transformer, data_type)
 
@@ -398,8 +401,8 @@ def build_product_gold_layer_task():
     results = {}
 
     try:
-        spark = _create_spark_session(f"AirflowTiki{task_name}")
-        silver_products_df = _read_parquet_from_path(spark, input_path)
+        spark = create_spark_session(f"AirflowTiki{task_name}")
+        silver_products_df = read_parquet_from_path(spark, input_path)
 
         if silver_products_df is None:
             logger.warning(f"Input silver_products is empty or could not be read from {input_path}. Skipping {task_name}.")
@@ -478,8 +481,8 @@ def build_review_gold_layer_task():
     }
 
     try:
-        spark = _create_spark_session(f"AirflowTiki{task_name}")
-        silver_products_df = _read_parquet_from_path(spark, input_path)
+        spark = create_spark_session(f"AirflowTiki{task_name}")
+        silver_products_df = read_parquet_from_path(spark, input_path)
 
         if silver_products_df is None:
             logger.warning(f"Input silver_products is empty or could not be read from {input_path}. Skipping {task_name}.")
@@ -557,9 +560,9 @@ def build_gold_categories_task():
     output_path_result = None
 
     try:
-        spark = _create_spark_session(f"{SPARK_APP_NAME_PREFIX}{task_name}")
+        spark = create_spark_session(f"{SPARK_APP_NAME_PREFIX}{task_name}")
 
-        silver_categories_df = _read_parquet_from_path(spark, silver_input_path)
+        silver_categories_df = read_parquet_from_path(spark, silver_input_path)
 
         if silver_categories_df is not None:
             logger.info(f"Read {silver_categories_df.count()} records from {silver_input_path}")
@@ -592,9 +595,9 @@ def build_gold_sellers_task():
     output_path_result = None
 
     try:
-        spark = _create_spark_session(f"{SPARK_APP_NAME_PREFIX}{task_name}")
+        spark = create_spark_session(f"{SPARK_APP_NAME_PREFIX}{task_name}")
 
-        silver_sellers_df = _read_parquet_from_path(spark, silver_input_path)
+        silver_sellers_df = read_parquet_from_path(spark, silver_input_path)
 
         if silver_sellers_df is not None:
             logger.info(f"Read {silver_sellers_df.count()} records from {silver_input_path}")
