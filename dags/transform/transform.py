@@ -116,9 +116,6 @@ def _get_raw_data(transformer: TikiTransformer, data_type: str) -> Optional[pd.D
 def _read_upstream_parquet(spark: SparkSession, ti: Optional[Any], task_id: str, default_path: str) -> Optional[DataFrame]:
     """Đọc dữ liệu Parquet từ output của task trước đó."""
     input_path = None
-    if ti:
-        input_path = ti.xcom_pull(task_ids=task_id, key='output_path')
-
     if not input_path:
         input_path = default_path
         logger.warning(f"Could not pull path from XCom for task '{task_id}', using default: {input_path}")
@@ -165,16 +162,6 @@ def _write_output_parquet(df: DataFrame, output_path: str) -> int:
     return count
 
 
-def _push_xcoms_result(ti: Optional[Any], output_path: Optional[str], record_count: Optional[int]):
-    """Push output path và record count lên XComs."""
-    if ti:
-        if output_path is not None:
-            ti.xcom_push(key="output_path", value=output_path)
-        if record_count is not None:
-            ti.xcom_push(key="record_count", value=record_count if record_count is not None else 0)
-        logger.info(f"Pushed XComs: output_path={output_path}, record_count={record_count}")
-
-
 def transform_sellers_task(ti=None, **context):
     """Task transform sellers đã refactor."""
     task_name = "Sellers"
@@ -209,8 +196,6 @@ def transform_sellers_task(ti=None, **context):
             logger.warning(f"Skipping write for {task_name} due to empty raw data.")
             output_path = None # Không có output path nếu không ghi gì
 
-        _push_xcoms_result(ti, output_path, final_count if success else 0)
-        # Trả về dict để dễ debug từ Airflow UI logs
         return {"output_path": output_path, "record_count": final_count if success else 0}
 
     except Exception as e:
@@ -253,7 +238,6 @@ def transform_categories_task(ti=None, **context):
             logger.warning(f"Skipping write for {task_name} due to empty raw data.")
             output_path = None
 
-        _push_xcoms_result(ti, output_path, final_count if success else 0)
         return {"output_path": output_path, "record_count": final_count if success else 0}
 
     except Exception as e:
@@ -319,7 +303,6 @@ def transform_products_task(ti=None, **context):
             logger.warning(f"Skipping write for {task_name} due to empty raw data.")
             output_path = None
 
-        _push_xcoms_result(ti, output_path, final_count if success else 0)
         return {"output_path": output_path, "record_count": final_count if success else 0}
 
     except Exception as e:
@@ -379,7 +362,6 @@ def transform_reviews_task(ti=None, **context):
             logger.warning(f"Skipping write for {task_name} due to empty raw data.")
             output_path = None
 
-        _push_xcoms_result(ti, output_path, final_count if success else 0)
         return {"output_path": output_path, "record_count": final_count if success else 0}
 
     except Exception as e:
